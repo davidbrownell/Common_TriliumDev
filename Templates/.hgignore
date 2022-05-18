@@ -1,0 +1,6 @@
+.trilium_dev/*
+hierarchy/*
+
+syntax: regexp
+store/.+/\[link\] .+
+syntax: glob

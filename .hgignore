@@ -25,3 +25,6 @@ coverage.xml
 
 .vscode/*
 .pytest_cache/*
+
+Scripts/TriliumDev.py
+src/TriliumDev/Schemas/GeneratedCode/Compiler.ConditionalInvocationQueryMixin.data
