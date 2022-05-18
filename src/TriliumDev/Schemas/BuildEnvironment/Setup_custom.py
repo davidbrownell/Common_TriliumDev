@@ -95,15 +95,14 @@ def GetDependencies():
     """
 
     return Configuration(
-        "Standard Development",
+        "Standard",
         [
             Dependency(
-                "3C72E8CD41EB483A891F01DDA606B780",
-                "Common_EnvironmentEx",
-                "python36",
-                "https://github.com/davidbrownell/Common_EnvironmentEx.git",
+                "5C7E1B3369B74BC098141FAD290288DA",
+                "Common_SimpleSchemaGenerator",
+                None,
+                "https://github.com/davidbrownell/Common_SimpleSchemaGenerator.git",
             ),
-
         ],
     )
 
@@ -119,9 +118,4 @@ def GetCustomActions(debug, verbose, explicit_configurations):
     cases, this is Bash on Linux systems and Batch or PowerShell on Windows systems.
     """
 
-    return [
-        CurrentShell.Commands.SymbolicLink(
-            os.path.join(_script_dir, "Scripts", "TriliumDev.py"),
-            os.path.join(_script_dir, "src", "TriliumDev", "__main__.py"),
-        )
-    ]
+    return []
