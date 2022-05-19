@@ -384,6 +384,7 @@ def Pull(
     ) as dm:
         PullModule.Pull(
             Config.Load(working_directory),
+            None, # url
             etapi_token,
             dm,
             overwrite_store=overwrite,
@@ -394,9 +395,99 @@ def Pull(
 
 # ----------------------------------------------------------------------
 @CommandLine.EntryPoint(
+    url=CommandLine.EntryPoint.Parameter("Diff with a specific Trilium instance; the specified during initialization will be used if a custom url isn't provided."),
     etapi_token=_etapi_token_parameter,
 )                                           # type: ignore
 @CommandLine.Constraints(                   # type: ignore
+    url=CommandLine.UriTypeInfo(
+        arity="?",
+    ),
+    working_directory=CommandLine.DirectoryTypeInfo(
+        arity="?",
+    ),
+    etapi_token=CommandLine.StringTypeInfo(
+        arity="?",
+    ),
+    output_stream=None,
+)
+def Diff(
+    url=None,
+    working_directory=os.getcwd(),
+    etapi_token=None,
+    output_stream=sys.stdout,
+):
+    """Detects differences between local content and a Trilium server"""
+
+    with StreamDecorator(output_stream).DoneManager(
+        line_prefix="",
+        prefix="\nResults: ",
+        suffix="\n",
+    ) as dm:
+        if url:
+            dm.stream.write(
+                textwrap.dedent(
+                    """\
+                    # ----------------------------------------------------------------------
+                    # |
+                    # |  Diffing against '{}'...
+                    # |
+                    # ----------------------------------------------------------------------
+
+                    """,
+                ).format(url.ToString()),
+            )
+
+        config = Config.Load(working_directory)
+
+        dm.stream.write("Loading reference notes...")
+        with dm.stream.DoneManager(
+            suffix="\n",
+        ) as reference_dm:
+            reference_notes = PullModule.GetNotes(
+                config,
+                url,
+                etapi_token,
+                reference_dm,
+                lambda *args, **kwargs: None,
+            )
+
+            if reference_dm.result != 0:
+                return reference_dm.result
+
+        dm.stream.write("Loading local notes...")
+        with dm.stream.DoneManager(
+            suffix="\n",
+        ) as local_dm:
+            actual_notes = LocalFilesystem.GetNotes(config, local_dm)
+
+            if local_dm.result != 0:
+                return local_dm.result
+
+            assert actual_notes is not None
+
+        dm.stream.write("Comparing notes...")
+        with dm.stream.DoneManager(
+            suffix="\n",
+        ) as compare_dm:
+            for difference in DiffModule.EnumDifferences(config, reference_notes, actual_notes):
+                compare_dm.stream.write("{}\n".format(difference.ToString()))
+                compare_dm.result += 1
+
+            if compare_dm.result == 0:
+                compare_dm.stream.write("No differences were detected.\n")
+
+        return dm.result
+
+
+# ----------------------------------------------------------------------
+@CommandLine.EntryPoint(
+    url=CommandLine.EntryPoint.Parameter("Push to a specific Trilium instance; the specified during initialization will be used if a custom url isn't provided."),
+    etapi_token=_etapi_token_parameter,
+)                                           # type: ignore
+@CommandLine.Constraints(                   # type: ignore
+    url=CommandLine.UriTypeInfo(
+        arity="?",
+    ),
     working_directory=CommandLine.DirectoryTypeInfo(
         arity="?",
     ),
@@ -406,6 +497,7 @@ def Pull(
     output_stream=None,
 )
 def Push(
+    url=None,
     working_directory=os.getcwd(),
     etapi_token=None,
     output_stream=sys.stdout,
@@ -417,6 +509,20 @@ def Push(
         prefix="\nResults: ",
         suffix="\n",
     ) as dm:
+        if url:
+            dm.stream.write(
+                textwrap.dedent(
+                    """\
+                    # ----------------------------------------------------------------------
+                    # |
+                    # |  Pushing to '{}'...
+                    # |
+                    # ----------------------------------------------------------------------
+
+                    """,
+                ).format(url.ToString()),
+            )
+
         config = Config.Load(working_directory)
 
         dm.stream.write("Loading reference notes...")
@@ -425,6 +531,7 @@ def Push(
         ) as reference_dm:
             reference_notes = PullModule.GetNotes(
                 config,
+                url,
                 etapi_token,
                 reference_dm,
                 lambda *args, **kwargs: None,
@@ -494,7 +601,7 @@ def Push(
                 return compare_dm.result
 
         with dm.stream.SingleLineDoneManager("Pushing {}...".format(inflect.no("change", len(activities)))) as activities_dm:
-            with RequestsSession.RequestsSession(config, etapi_token) as session:
+            with RequestsSession.RequestsSession(config, url, etapi_token) as session:
                 # ----------------------------------------------------------------------
                 def Execute(
                     data: Tuple[str, Callable[[RequestsSession.SessionWrapper, Callable[[str], None]], None]],
@@ -511,106 +618,6 @@ def Push(
                     num_concurrent_tasks=multiprocessing.cpu_count(),
                     name_functor=lambda index, item: item[0],
                 )
-
-        return dm.result
-
-
-# ----------------------------------------------------------------------
-@CommandLine.EntryPoint(
-    etapi_token=_etapi_token_parameter,
-)                                           # type: ignore
-@CommandLine.Constraints(                   # type: ignore
-    working_directory=CommandLine.DirectoryTypeInfo(
-        arity="?",
-    ),
-    etapi_token=CommandLine.StringTypeInfo(
-        arity="?",
-    ),
-    output_stream=None,
-)
-def Diff(
-    working_directory=os.getcwd(),
-    etapi_token=None,
-    output_stream=sys.stdout,
-):
-    """Detects differences between local content and a Trilium server"""
-
-    with StreamDecorator(output_stream).DoneManager(
-        line_prefix="",
-        prefix="\nResults: ",
-        suffix="\n",
-    ) as dm:
-        config = Config.Load(working_directory)
-
-        dm.stream.write("Loading reference notes...")
-        with dm.stream.DoneManager(
-            suffix="\n",
-        ) as reference_dm:
-            reference_notes = PullModule.GetNotes(
-                config,
-                etapi_token,
-                reference_dm,
-                lambda *args, **kwargs: None,
-            )
-
-            if reference_dm.result != 0:
-                return reference_dm.result
-
-        dm.stream.write("Loading local notes...")
-        with dm.stream.DoneManager(
-            suffix="\n",
-        ) as local_dm:
-            actual_notes = LocalFilesystem.GetNotes(config, local_dm)
-
-            if local_dm.result != 0:
-                return local_dm.result
-
-            assert actual_notes is not None
-
-        dm.stream.write("Comparing notes...")
-        with dm.stream.DoneManager(
-            suffix="\n",
-        ) as compare_dm:
-            for difference in DiffModule.EnumDifferences(config, reference_notes, actual_notes):
-                compare_dm.stream.write("{}\n".format(difference.ToString()))
-                compare_dm.result += 1
-
-            if compare_dm.result == 0:
-                compare_dm.stream.write("No differences were detected.\n")
-
-        return dm.result
-
-
-# ----------------------------------------------------------------------
-@CommandLine.EntryPoint(
-    etapi_token=_etapi_token_parameter,
-)                                           # type: ignore
-@CommandLine.Constraints(                   # type: ignore
-    working_directory=CommandLine.DirectoryTypeInfo(
-        arity="?",
-    ),
-    etapi_token=CommandLine.StringTypeInfo(
-        arity="?",
-    ),
-    output_stream=None,
-)
-def Sync(
-    working_directory=os.getcwd(),
-    etapi_token=None,
-    output_stream=sys.stdout,
-):
-    """Synchronizes local content and a Trilium server"""
-
-    with StreamDecorator(output_stream).DoneManager(
-        line_prefix="",
-        prefix="\nResults: ",
-        suffix="\n",
-    ) as dm:
-        config = Config.Load(working_directory)
-
-        dm.stream.write("Syncing content...")
-        with dm.stream.DoneManager() as sync_dm:
-            raise NotImplementedError("TODO") # TODO
 
         return dm.result
 
@@ -644,6 +651,7 @@ def _InitImpl(
     if not no_pull:
         PullModule.Pull(
             config,
+            None, # url
             etapi_token,
             dm,
             overwrite_store=overwrite,

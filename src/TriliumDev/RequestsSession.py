@@ -23,6 +23,7 @@ from typing import Optional
 import requests
 
 import CommonEnvironment
+from CommonEnvironment.TypeInfo.FundamentalTypes.UriTypeInfo import Uri
 
 from CommonEnvironmentEx.Package import InitRelativeImports
 
@@ -70,6 +71,7 @@ class SessionWrapper(object):
 @contextmanager
 def RequestsSession(
     config: Config,
+    url: Optional[Uri],
     etapi_token: Optional[str],
 ):
     with requests.Session() as session:
@@ -79,4 +81,9 @@ def RequestsSession(
             },
         )
 
-        yield SessionWrapper(session, "{}/ETAPI/".format(config.source_url))
+        if url is not None:
+            url_string = url.ToString()
+        else:
+            url_string = config.source_url
+
+        yield SessionWrapper(session, "{}/ETAPI/".format(url_string))

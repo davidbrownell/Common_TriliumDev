@@ -36,6 +36,7 @@ from CommonEnvironment.StreamDecorator import StreamDecorator, StreamDecoratorEx
 
 from CommonEnvironment.TypeInfo.FundamentalTypes.DateTimeTypeInfo import DateTimeTypeInfo
 from CommonEnvironment.TypeInfo.FundamentalTypes.Serialization.StringSerialization import StringSerialization
+from CommonEnvironment.TypeInfo.FundamentalTypes.UriTypeInfo import Uri
 
 from CommonEnvironmentEx.Package import InitRelativeImports
 
@@ -63,6 +64,7 @@ inflect                                     = inflect_mod.engine()
 # ----------------------------------------------------------------------
 def Pull(
     config: Config,
+    url: Optional[Uri],
     etapi_token: Optional[str],
     dm: StreamDecorator.DoneManagerInfo,
     *,
@@ -128,6 +130,7 @@ def Pull(
 
     root = GetNotes(
         config,
+        url,
         etapi_token,
         dm,
         SaveContent,
@@ -198,6 +201,7 @@ def Pull(
 # ----------------------------------------------------------------------
 def GetNotes(
     config: Config,
+    url: Optional[Uri],
     etapi_token: Optional[str],
     dm: StreamDecorator.DoneManagerInfo,
     content_callback: Optional[
@@ -216,7 +220,7 @@ def GetNotes(
 
     note_lookup: Dict[str, _WorkingNote] = {}
 
-    with RequestsSession(config, etapi_token) as session:
+    with RequestsSession(config, url, etapi_token) as session:
         skipped_notifications: List[str] = []
 
         with dm.stream.SingleLineDoneManager(
