@@ -1,0 +1,8 @@
+This file is used to uniquely identify this repository for the purposes of dependency management.
+Other repositories that depend on this one will search for this file upon initial setup and 
+generate information that can be used when activating development environments.
+
+**** PLEASE DO NOT MODIFY, REMOVE, OR RENAME THIS FILE, AS DOING SO WILL LIKELY BREAK OTHER REPOSITORIES! ****
+
+Friendly Name:      Common_TriliumDev_SchemaBuildEnvironment
+Id:                 203E84F7A3ED49088BD350F324C5AC08

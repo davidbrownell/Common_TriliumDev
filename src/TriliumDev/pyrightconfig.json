@@ -1,0 +1,7 @@
+{
+    "reportUnnecessaryTypeIgnoreComments": true,
+    "exclude": [
+        "**/*Tests/*",
+        "**/Schemas/BuildEnvironment/*"
+    ]
+}

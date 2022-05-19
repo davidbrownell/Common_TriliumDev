@@ -1,0 +1,9 @@
+<Attribute>:
+    <id string>
+    <attr_type enum values=[label, relation, template]>
+    <name string>
+    <value (string min_length=0 | int | bool | number | datetime)>
+    <position int min=0>
+    <is_inheritable bool>
+
+<Attributes Attribute *>
