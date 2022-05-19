@@ -15,12 +15,15 @@
 # ----------------------------------------------------------------------
 """Tools that help when developing extensions within Trilium (https://github.com/zadam/trilium)."""
 
+import multiprocessing
 import os
 import re
 import sys
 import textwrap
 
-from typing import Optional
+from typing import Callable, Dict, Optional, Tuple
+
+import inflect as inflect_mod
 
 import CommonEnvironment
 from CommonEnvironment import CommandLine
@@ -29,6 +32,7 @@ from CommonEnvironment.Shell.All import CurrentShell
 from CommonEnvironment.Shell import Commands
 from CommonEnvironment.StreamDecorator import StreamDecorator, StreamDecoratorException
 from CommonEnvironment import StringHelpers
+from CommonEnvironment import TaskPool
 
 from CommonEnvironmentEx.Package import InitRelativeImports
 
@@ -38,13 +42,17 @@ _script_dir, _script_name                   = os.path.split(_script_fullpath)
 # ----------------------------------------------------------------------
 
 with InitRelativeImports():
+    from . import Activities
     from .Config import Config, DockerConfig
     from . import Diff as DiffModule
     from . import LocalFilesystem
     from . import Pull as PullModule
+    from . import RequestsSession
 
 
 # ----------------------------------------------------------------------
+inflect                                     = inflect_mod.engine()
+
 DEFAULT_DEV_PORT                            = 8010
 
 
@@ -411,13 +419,98 @@ def Push(
     ) as dm:
         config = Config.Load(working_directory)
 
-        root = LocalFilesystem.GetNotes(config, dm)
+        dm.stream.write("Loading reference notes...")
+        with dm.stream.DoneManager(
+            suffix="\n",
+        ) as reference_dm:
+            reference_notes = PullModule.GetNotes(
+                config,
+                etapi_token,
+                reference_dm,
+                lambda *args, **kwargs: None,
+            )
 
-        if root is None:
-            dm.result = -1
-            return dm.result
+            if reference_dm.result != 0:
+                return reference_dm.result
 
-        raise NotImplementedError("TODO") # TODO
+        dm.stream.write("Loading local notes...")
+        with dm.stream.DoneManager(
+            suffix="\n",
+        ) as local_dm:
+            actual_notes = LocalFilesystem.GetNotes(config, local_dm)
+
+            if local_dm.result != 0:
+                return local_dm.result
+
+            assert actual_notes is not None
+
+        dm.stream.write("Comparing notes...")
+        with dm.stream.DoneManager(
+            suffix="\n",
+        ) as compare_dm:
+            activities: Dict[
+                str,
+                Callable[[RequestsSession.SessionWrapper, Callable[[str], None]], None]
+            ] = {}
+
+            for difference in DiffModule.EnumDifferences(config, reference_notes, actual_notes):
+                if difference.diff_type == DiffModule.DiffType.content_type_changed:
+                    raise Exception("TODO: 'content_type_changed' not supported yet")
+
+                if difference.diff_type == DiffModule.DiffType.parent_id_added:
+                    raise Exception("TODO: 'parent_id_added' not supported yet")
+
+                if difference.diff_type == DiffModule.DiffType.parent_id_removed:
+                    raise Exception("TODO: 'parent_id_removed' not supported yet")
+
+                if difference.diff_type == DiffModule.DiffType.attribute_added:
+                    raise Exception("TODO: 'attribute_added' not supported yet")
+
+                if difference.diff_type == DiffModule.DiffType.attribute_removed:
+                    raise Exception("TODO: 'attribute_removed' not supported yet")
+
+                if difference.diff_type == DiffModule.DiffType.attribute_changed:
+                    raise Exception("TODO: 'attribute_changed' not supported yet")
+
+                if difference.diff_type == DiffModule.DiffType.content_changed:
+                    activities[difference.ToString()] = (lambda session, on_status_update, note=difference.actual:
+                        Activities.PushContent(config, session, note, on_status_update)
+                    )
+
+                if difference.diff_type == DiffModule.DiffType.child_added:
+                    raise Exception("TODO: 'child_added' not supported yet")
+
+                if difference.diff_type == DiffModule.DiffType.child_removed:
+                    raise Exception("TODO: 'child_removed' not supported yet")
+
+                if difference.diff_type == DiffModule.DiffType.child_changed:
+                    raise Exception("TODO: 'child_changed' not supported yet")
+
+                if difference.diff_type == DiffModule.DiffType.child_link_changed:
+                    raise Exception("TODO: 'child_link_changed' not supported yet")
+
+            if not activities:
+                compare_dm.stream.write("No differences were detected.\n")
+                return compare_dm.result
+
+        with dm.stream.SingleLineDoneManager("Pushing {}...".format(inflect.no("change", len(activities)))) as activities_dm:
+            with RequestsSession.RequestsSession(config, etapi_token) as session:
+                # ----------------------------------------------------------------------
+                def Execute(
+                    data: Tuple[str, Callable[[RequestsSession.SessionWrapper, Callable[[str], None]], None]],
+                    on_status_update: Callable[[str], None],
+                ) -> None:
+                    data[1](session, on_status_update)
+
+                # ----------------------------------------------------------------------
+
+                TaskPool.Transform(
+                    list(activities.items()),
+                    Execute,
+                    activities_dm.stream,
+                    num_concurrent_tasks=multiprocessing.cpu_count(),
+                    name_functor=lambda index, item: item[0],
+                )
 
         return dm.result
 
