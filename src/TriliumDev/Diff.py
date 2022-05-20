@@ -18,7 +18,7 @@
 import os
 
 from enum import auto, Enum
-from typing import cast, Dict, Generator, List, Optional, Set, Tuple, Union
+from typing import cast, Callable, Dict, Generator, List, Optional, Set, Tuple, Union
 
 from dataclasses import dataclass
 
@@ -33,7 +33,9 @@ _script_dir, _script_name                   = os.path.split(_script_fullpath)
 # ----------------------------------------------------------------------
 
 with InitRelativeImports():
+    from . import Activities
     from .Config import Config
+    from .RequestsSession import SessionWrapper
     from .TriliumAttribute import TriliumAttribute
     from .TriliumNoteShort import TriliumNoteShort
 
@@ -61,6 +63,24 @@ class DiffType(Enum):
 @dataclass(frozen=True, repr=False)
 class DiffInfo(ObjectReprImplBase):
     # ----------------------------------------------------------------------
+    # |
+    # |  Public Types
+    # |
+    # ----------------------------------------------------------------------
+    ToActivityResultType                    = Callable[
+        [
+            Config,
+            SessionWrapper,
+            Callable[[str], None],          # status_functor
+        ],
+        None,
+    ]
+
+    # ----------------------------------------------------------------------
+    # |
+    # |  Public Data
+    # |
+    # ----------------------------------------------------------------------
     diff_type: DiffType
 
     reference: TriliumNoteShort
@@ -83,6 +103,10 @@ class DiffInfo(ObjectReprImplBase):
                                             # child_link_changed
     ]
 
+    # ----------------------------------------------------------------------
+    # |
+    # |  Public Methods
+    # |
     # ----------------------------------------------------------------------
     @classmethod
     def Create(cls, *args, **kwargs):
@@ -141,6 +165,43 @@ class DiffInfo(ObjectReprImplBase):
         if self.diff_type == DiffType.child_link_changed:
             context = cast(Tuple[str, TriliumNoteShort], self.context)
             return "[{}] Child '{}'s link was changed to '{}'.".format(self.actual.id, context[1].id, context[0])
+
+        assert False, self.diff_type
+
+    # ----------------------------------------------------------------------
+    def ToActivity(self) -> "DiffInfo.ToActivityResultType":
+        if self.diff_type == DiffType.content_type_changed:
+            raise Exception("TODO: 'content_type_changed' not supported yet")
+
+        if self.diff_type == DiffType.parent_id_added:
+            raise Exception("TODO: 'parent_id_added' not supported yet")
+
+        if self.diff_type == DiffType.parent_id_removed:
+            raise Exception("TODO: 'parent_id_removed' not supported yet")
+
+        if self.diff_type == DiffType.attribute_added:
+            raise Exception("TODO: 'attribute_added' not supported yet")
+
+        if self.diff_type == DiffType.attribute_removed:
+            raise Exception("TODO: 'attribute_removed' not supported yet")
+
+        if self.diff_type == DiffType.attribute_changed:
+            raise Exception("TODO: 'attribute_changed' not supported yet")
+
+        if self.diff_type == DiffType.content_changed:
+            return lambda config, session, on_status_update: Activities.PushContent(config, session, on_status_update, self.actual)
+
+        if self.diff_type == DiffType.child_added:
+            raise Exception("TODO: 'child_added' not supported yet")
+
+        if self.diff_type == DiffType.child_removed:
+            raise Exception("TODO: 'child_removed' not supported yet")
+
+        if self.diff_type == DiffType.child_changed:
+            raise Exception("TODO: 'child_changed' not supported yet")
+
+        if self.diff_type == DiffType.child_link_changed:
+            raise Exception("TODO: 'child_link_changed' not supported yet")
 
         assert False, self.diff_type
 

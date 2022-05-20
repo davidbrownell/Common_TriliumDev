@@ -42,8 +42,8 @@ _script_dir, _script_name                   = os.path.split(_script_fullpath)
 # ----------------------------------------------------------------------
 
 with InitRelativeImports():
-    from . import Activities
     from .Config import Config, DockerConfig
+    from . import Dev as DevModule
     from . import Diff as DiffModule
     from . import LocalFilesystem
     from . import Pull as PullModule
@@ -70,7 +70,6 @@ def CommandLineSuffix() -> str:
 # |  Public Functions
 # |
 # ----------------------------------------------------------------------
-# TODO: Dev
 # TODO: Publish
 
 @CommandLine.EntryPoint(
@@ -555,46 +554,10 @@ def Push(
         with dm.stream.DoneManager(
             suffix="\n",
         ) as compare_dm:
-            activities: Dict[
-                str,
-                Callable[[RequestsSession.SessionWrapper, Callable[[str], None]], None]
-            ] = {}
+            activities: Dict[str, DiffModule.DiffInfo.ToActivityResultType] = {}
 
             for difference in DiffModule.EnumDifferences(config, reference_notes, actual_notes):
-                if difference.diff_type == DiffModule.DiffType.content_type_changed:
-                    raise Exception("TODO: 'content_type_changed' not supported yet")
-
-                if difference.diff_type == DiffModule.DiffType.parent_id_added:
-                    raise Exception("TODO: 'parent_id_added' not supported yet")
-
-                if difference.diff_type == DiffModule.DiffType.parent_id_removed:
-                    raise Exception("TODO: 'parent_id_removed' not supported yet")
-
-                if difference.diff_type == DiffModule.DiffType.attribute_added:
-                    raise Exception("TODO: 'attribute_added' not supported yet")
-
-                if difference.diff_type == DiffModule.DiffType.attribute_removed:
-                    raise Exception("TODO: 'attribute_removed' not supported yet")
-
-                if difference.diff_type == DiffModule.DiffType.attribute_changed:
-                    raise Exception("TODO: 'attribute_changed' not supported yet")
-
-                if difference.diff_type == DiffModule.DiffType.content_changed:
-                    activities[difference.ToString()] = (lambda session, on_status_update, note=difference.actual:
-                        Activities.PushContent(config, session, note, on_status_update)
-                    )
-
-                if difference.diff_type == DiffModule.DiffType.child_added:
-                    raise Exception("TODO: 'child_added' not supported yet")
-
-                if difference.diff_type == DiffModule.DiffType.child_removed:
-                    raise Exception("TODO: 'child_removed' not supported yet")
-
-                if difference.diff_type == DiffModule.DiffType.child_changed:
-                    raise Exception("TODO: 'child_changed' not supported yet")
-
-                if difference.diff_type == DiffModule.DiffType.child_link_changed:
-                    raise Exception("TODO: 'child_link_changed' not supported yet")
+                activities[difference.ToString()] = difference.ToActivity()
 
             if not activities:
                 compare_dm.stream.write("No differences were detected.\n")
@@ -618,6 +581,36 @@ def Push(
                     num_concurrent_tasks=multiprocessing.cpu_count(),
                     name_functor=lambda index, item: item[0],
                 )
+
+        return dm.result
+
+
+# ----------------------------------------------------------------------
+@CommandLine.EntryPoint(
+    etapi_token=_etapi_token_parameter,
+)                                           # type: ignore
+@CommandLine.Constraints(                   # type: ignore
+    working_directory=CommandLine.DirectoryTypeInfo(
+        arity="?",
+    ),
+    etapi_token=CommandLine.StringTypeInfo(
+        arity="?",
+    ),
+    output_stream=None,
+)
+def Dev(
+    working_directory=os.getcwd(),
+    etapi_token=None,
+    output_stream=sys.stdout,
+):
+    """Monitors local file changes and automatically pushes them to a Trilium server"""
+
+    with StreamDecorator(output_stream).DoneManager(
+        line_prefix="",
+        prefix="\nResults: ",
+        suffix="\n",
+    ) as dm:
+        DevModule.Monitor(Config.Load(working_directory), etapi_token, dm)
 
         return dm.result
 

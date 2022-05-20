@@ -51,3 +51,6 @@ mimetype_note_type_map                      = {
     "application/javascript;env=backend": "code",
     "application/javascript;env=frontend": "code",
 }
+
+
+assert len(mimetype_extension_map) == len(mimetype_note_type_map)
