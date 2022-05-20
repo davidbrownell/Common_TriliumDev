@@ -39,8 +39,8 @@ with InitRelativeImports():
 def PushContent(
     config: Config,
     session: SessionWrapper,
-    note: TriliumNoteShort,
     on_status_update: Callable[[str], None],
+    note: TriliumNoteShort,
 ) -> None:
     # Get the content
     on_status_update("Reading content")
