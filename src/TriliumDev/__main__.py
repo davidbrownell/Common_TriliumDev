@@ -124,7 +124,7 @@ def Init(
 # ----------------------------------------------------------------------
 @CommandLine.EntryPoint(
     trilium_docker_tag=CommandLine.EntryPoint.Parameter("The Trilium docker image tag used when creating the container; 'latest' is used if a tag is not specified."),
-    docker_port=CommandLine.EntryPoint.Parameter("Port exposed by the docker container."),
+    docker_port=CommandLine.EntryPoint.Parameter("Port(s) exposed by the docker container."),
     etapi_token=_etapi_token_parameter,
     root_note_id=CommandLine.EntryPoint.Parameter("The Trilium note id of the note to use as the root when syncing content. The 'root' note will be used if none is specified."),
     no_init=CommandLine.EntryPoint.Parameter("Do not initialize the local development environment."),
@@ -141,7 +141,7 @@ def Init(
     ),
     docker_port=CommandLine.IntTypeInfo(
         min=1,
-        arity="?",
+        arity="*",
     ),
     etapi_token=CommandLine.StringTypeInfo(
         arity="?",
@@ -171,6 +171,9 @@ def InitDevServer(
 ):
     """Copies Trilium's data directory, creates a docker instance to serve the copied content, and initializes a local Trilium development environment against that server."""
 
+    docker_ports = docker_port
+    del docker_port
+
     with StreamDecorator(output_stream).DoneManager(
         line_prefix="",
         prefix="\nResults: ",
@@ -195,7 +198,7 @@ def InitDevServer(
                 docker_config = DockerConfig.Load(working_directory)
 
                 trilium_docker_tag = docker_config.docker_tag
-                docker_port = docker_config.docker_port
+                docker_ports = docker_config.docker_ports
 
                 root_note_id = config.root_note_id
 
@@ -230,8 +233,8 @@ def InitDevServer(
 
             if config_port is None:
                 raise StreamDecoratorException("Port information could not be found in '{}'.".format(config_filename))
-            if docker_port is None:
-                docker_port = config_port
+            if not docker_ports:
+                docker_ports = [config_port]
 
             assert config_port is not None
 
@@ -270,8 +273,9 @@ def InitDevServer(
                     CurrentShell.GenerateCommands(
                         [
                             Commands.Execute(
-                                'docker run -it --rm -p {docker_port}:{config_port} -v "{script_dest_directory}:/home/node/trilium-data" zadam/trilium{tag}'.format(
-                                    docker_port=docker_port,
+                                'docker run -it --rm -p {docker_port}:{config_port} {additional_docker_ports} -v "{script_dest_directory}:/home/node/trilium-data" zadam/trilium{tag}'.format(
+                                    docker_port=docker_ports[0],
+                                    additional_docker_ports=" ".join("-p {}:{}".format(port, port) for port in docker_ports[1:]),
                                     config_port=config_port,
                                     script_dest_directory=script_dest_directory,
                                     tag=":{}".format(trilium_docker_tag) if trilium_docker_tag is not None else "",
@@ -283,7 +287,7 @@ def InitDevServer(
 
             CurrentShell.MakeFileExecutable(docker_script_filename)
 
-            DockerConfig.Create(trilium_docker_tag, docker_port).Save(
+            DockerConfig.Create(trilium_docker_tag, docker_ports).Save(
                 working_directory,
                 overwrite=overwrite,
             )
@@ -311,7 +315,7 @@ def InitDevServer(
                     )
 
                 _InitImpl(
-                    "http://localhost:{}".format(docker_port),
+                    "http://localhost:{}".format(docker_ports[0]),
                     etapi_token,
                     root_note_id,
                     working_directory,
@@ -588,6 +592,8 @@ def Push(
 # ----------------------------------------------------------------------
 @CommandLine.EntryPoint(
     etapi_token=_etapi_token_parameter,
+    refresh_url=CommandLine.EntryPoint.Parameter("If the Trilium Development Tools extension is enabled, send a post request to this url to indicate that the browser window should be refreshed automatically."),
+    refresh_port=CommandLine.EntryPoint.Parameter("If Trilium Development Tools extension is enabled, send a post request to this port to indicate that the browser window should be refreshed automatically.")
 )                                           # type: ignore
 @CommandLine.Constraints(                   # type: ignore
     working_directory=CommandLine.DirectoryTypeInfo(
@@ -596,11 +602,20 @@ def Push(
     etapi_token=CommandLine.StringTypeInfo(
         arity="?",
     ),
+    refresh_port=CommandLine.IntTypeInfo(
+        min=1,
+        arity="?",
+    ),
+    refresh_url=CommandLine.UriTypeInfo(
+        arity="?",
+    ),
     output_stream=None,
 )
 def Dev(
     working_directory=os.getcwd(),
     etapi_token=None,
+    refresh_url=None,
+    refresh_port=None,
     output_stream=sys.stdout,
 ):
     """Monitors local file changes and automatically pushes them to a Trilium server"""
@@ -610,7 +625,13 @@ def Dev(
         prefix="\nResults: ",
         suffix="\n",
     ) as dm:
-        DevModule.Monitor(Config.Load(working_directory), etapi_token, dm)
+        DevModule.Monitor(
+            Config.Load(working_directory),
+            etapi_token,
+            dm,
+            refresh_url=refresh_url.ToString() if refresh_url else None,
+            refresh_port=refresh_port,
+        )
 
         return dm.result
 
