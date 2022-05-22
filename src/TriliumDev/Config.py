@@ -18,7 +18,7 @@
 import os
 import textwrap
 
-from typing import Optional
+from typing import List, Optional
 
 from dataclasses import dataclass
 import rtyaml
@@ -277,7 +277,7 @@ class DockerConfig(ObjectReprImplBase):
 
     # ----------------------------------------------------------------------
     docker_tag: Optional[str]
-    docker_port: int
+    docker_ports: List[int]
 
     # ----------------------------------------------------------------------
     @classmethod
