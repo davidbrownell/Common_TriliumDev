@@ -127,6 +127,7 @@ def Init(
     docker_port=CommandLine.EntryPoint.Parameter("Port(s) exposed by the docker container."),
     etapi_token=_etapi_token_parameter,
     root_note_id=CommandLine.EntryPoint.Parameter("The Trilium note id of the note to use as the root when syncing content. The 'root' note will be used if none is specified."),
+    refresh_port=CommandLine.EntryPoint.Parameter("Port used by Trilium as the development refresh server; see the 'Trilium Development Tools' extension for more information."),
     no_init=CommandLine.EntryPoint.Parameter("Do not initialize the local development environment."),
     no_pull=CommandLine.EntryPoint.Parameter("Do not pull content from the server."),
     refresh=CommandLine.EntryPoint.Parameter("Refreshes the local development environment by syncing with the Trilium data directory."),
@@ -149,6 +150,10 @@ def Init(
     root_note_id=CommandLine.StringTypeInfo(
         arity="?",
     ),
+    refresh_port=CommandLine.IntTypeInfo(
+        min=1,
+        arity="?",
+    ),
     working_directory=CommandLine.DirectoryTypeInfo(
         ensure_exists=False,
         arity="?",
@@ -161,6 +166,7 @@ def InitDevServer(
     docker_port=None,
     etapi_token=None,
     root_note_id="root",
+    refresh_port=None,
     working_directory=os.getcwd(),
     refresh=False,
     yes=False,
@@ -198,9 +204,10 @@ def InitDevServer(
                 docker_config = DockerConfig.Load(working_directory)
 
                 trilium_docker_tag = docker_config.docker_tag
-                docker_ports = docker_config.docker_ports
-
                 root_note_id = config.root_note_id
+
+                docker_ports = docker_config.docker_ports
+                refresh_port = docker_config.refresh_port
 
                 overwrite = True
 
@@ -287,7 +294,7 @@ def InitDevServer(
 
             CurrentShell.MakeFileExecutable(docker_script_filename)
 
-            DockerConfig.Create(trilium_docker_tag, docker_ports).Save(
+            DockerConfig.Create(trilium_docker_tag, docker_ports, refresh_port).Save(
                 working_directory,
                 overwrite=overwrite,
             )
@@ -625,8 +632,13 @@ def Dev(
         prefix="\nResults: ",
         suffix="\n",
     ) as dm:
+        config = Config.Load(working_directory)
+
+        if refresh_port is None:
+            refresh_port = DockerConfig.Load(config.working_directory).refresh_port
+
         DevModule.Monitor(
-            Config.Load(working_directory),
+            config,
             etapi_token,
             dm,
             refresh_url=refresh_url.ToString() if refresh_url else None,

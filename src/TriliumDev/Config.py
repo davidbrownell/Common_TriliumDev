@@ -278,6 +278,7 @@ class DockerConfig(ObjectReprImplBase):
     # ----------------------------------------------------------------------
     docker_tag: Optional[str]
     docker_ports: List[int]
+    refresh_port: Optional[int]
 
     # ----------------------------------------------------------------------
     @classmethod
