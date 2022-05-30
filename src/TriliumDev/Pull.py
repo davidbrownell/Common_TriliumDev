@@ -319,7 +319,7 @@ def GetNotes(
                         assert child_branch["parentNoteId"] == note.id, (child_branch["branchId"], child_branch["parentNodeId"], note.id)
                         assert child_branch["noteId"] == potential_note.id, (child_branch["branchId"], child_branch["noteId"], potential_note.id)
 
-                        note.children.setdefault(child_branch["prefix"] or None, []).append(potential_note)  # type: ignore  # pylint: disable=no-member
+                        note.children.setdefault(child_branch.get("prefix", None), []).append(potential_note)  # type: ignore  # pylint: disable=no-member
 
             if prev_status_output_length != 0:
                 pull_dm.stream.write(
