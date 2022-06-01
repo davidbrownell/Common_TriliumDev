@@ -212,7 +212,10 @@ def InitDevServer(
                 overwrite = True
 
             except Exception:
-                raise StreamDecoratorException("Unable to refresh the information in '{}'; please initialize the local development environment again.".format(working_directory))
+                if os.path.isdir(os.path.join(working_directory, Config.DEVELOPMENT_DIRECTORY)):
+                    raise StreamDecoratorException("Unable to refresh the information in '{}'; please initialize the local development environment again.".format(working_directory))
+
+                raise StreamDecoratorException("There isn't any local development environment information in '{}'; please initialize the local development environment before refreshing.".format(working_directory))
 
         dm.stream.write("\nProcessing the Trilium data directory at '{}'...".format(trilium_data_directory))
         with dm.stream.DoneManager(
@@ -264,8 +267,12 @@ def InitDevServer(
             # Note: No need to disable sync, as this version of Trilium running in the docker container
             # will not have access to the outside world, and therefore will not be able to sync.
 
+        dm.stream.write("Creating development scripts...")
+        with dm.stream.DoneManager(
+            suffix="\n",
+        ):
             # Create a script to launch docker
-            docker_script_filename = os.path.join(dev_output_directory, CurrentShell.CreateScriptName("docker"))
+            docker_script_filename = os.path.join(dev_output_directory, CurrentShell.CreateScriptName("launch_docker"))
 
             if CurrentShell.CategoryName == "Windows":
                 # Make the path relative
@@ -298,6 +305,24 @@ def InitDevServer(
                 working_directory,
                 overwrite=overwrite,
             )
+
+            # Create a script to launch Edge if on Windows
+            if CurrentShell.CategoryName == "Windows":
+                launch_edge_filename = os.path.join(dev_output_directory, "launch_edge.cmd")
+
+                with open(launch_edge_filename, "w") as f:
+                    f.write(
+                        textwrap.dedent(
+                            """\
+                            @REM Launches the Edge browser pointing to the local development server.
+                            @echo off
+
+                            start "" "%ProgramFiles(x86)%\\Microsoft\\Edge\\Application\\msedge.exe" http://localhost:{docker_port} -inprivate
+                            """,
+                        ).format(
+                            docker_port=docker_ports[0],
+                        ),
+                    )
 
         if not no_init:
             dm.stream.write("Initializing the local development environment...")
