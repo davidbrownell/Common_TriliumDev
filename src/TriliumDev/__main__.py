@@ -535,6 +535,7 @@ def Push(
     url=None,
     working_directory=os.getcwd(),
     etapi_token=None,
+    force=False,
     output_stream=sys.stdout,
 ):
     """Pushes content to a Trilium server"""
@@ -593,20 +594,40 @@ def Push(
             activities: Dict[str, DiffModule.DiffInfo.ToActivityResultType] = {}
 
             for difference in DiffModule.EnumDifferences(config, reference_notes, actual_notes):
-                activities[difference.ToString()] = difference.ToActivity()
+                try:
+                    activities[difference.ToString()] = difference.ToActivity()
+                except Exception as ex:
+                    compare_dm.stream.write("ERROR: {}\n".format(ex))
+                    compare_dm.result = -1
 
             if not activities:
                 compare_dm.stream.write("No differences were detected.\n")
                 return compare_dm.result
 
+            if compare_dm.result != 0:
+                if not force:
+                    return compare_dm.result
+
+                compare_dm.result = 0
+
         with dm.stream.SingleLineDoneManager("Pushing {}...".format(inflect.no("change", len(activities)))) as activities_dm:
             with RequestsSession.RequestsSession(config, url, etapi_token) as session:
                 # ----------------------------------------------------------------------
                 def Execute(
-                    data: Tuple[str, Callable[[RequestsSession.SessionWrapper, Callable[[str], None]], None]],
+                    data: Tuple[
+                        str,
+                        Callable[
+                            [
+                                Config,
+                                RequestsSession.SessionWrapper,
+                                Callable[[str], None],
+                            ],
+                            None,
+                        ],
+                    ],
                     on_status_update: Callable[[str], None],
                 ) -> None:
-                    data[1](session, on_status_update)
+                    data[1](config, session, on_status_update)
 
                 # ----------------------------------------------------------------------
 

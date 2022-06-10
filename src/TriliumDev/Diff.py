@@ -130,41 +130,41 @@ class DiffInfo(ObjectReprImplBase):
     # ----------------------------------------------------------------------
     def ToString(self) -> str:
         if self.diff_type == DiffType.content_type_changed:
-            return "[{}] Content type changed.".format(self.actual.id)
+            return "[{}] Content type changed".format(self.actual.id)
 
         if self.diff_type == DiffType.parent_id_added:
-            return "[{}] Parent '{}' was added.".format(self.actual.id, self.context)
+            return "[{}] Parent '{}' was added".format(self.actual.id, self.context)
 
         if self.diff_type == DiffType.parent_id_removed:
-            return "[{}] Parent '{}' was removed.".format(self.actual.id, self.context)
+            return "[{}] Parent '{}' was removed".format(self.actual.id, self.context)
 
         if self.diff_type == DiffType.attribute_added:
-            return "[{}] Attribute '{}' was added.".format(self.actual.id, cast(TriliumAttribute, self.context).id)
+            return "[{}] Attribute '{}' was added".format(self.actual.id, cast(TriliumAttribute, self.context).id)
 
         if self.diff_type == DiffType.attribute_removed:
-            return "[{}] Attribute '{}' was removed.".format(self.actual.id, cast(TriliumAttribute, self.context).id)
+            return "[{}] Attribute '{}' was removed".format(self.actual.id, cast(TriliumAttribute, self.context).id)
 
         if self.diff_type == DiffType.attribute_changed:
-            return "[{}] Attribute '{}' changed.".format(self.actual.id, cast(TriliumAttribute, self.context).id)
+            return "[{}] Attribute '{}' changed".format(self.actual.id, cast(TriliumAttribute, self.context).id)
 
         if self.diff_type == DiffType.content_changed:
-            return "[{}] Content changed.".format(self.actual.id)
+            return "[{}] Content changed".format(self.actual.id)
 
         if self.diff_type == DiffType.child_added:
             context = cast(Tuple[str, TriliumNoteShort], self.context)
-            return "[{}] Child linked as '{}' was added to '{}'.".format(self.actual.id, context[0], context[1].id)
+            return "[{}] Child linked as '{}' was added to '{}'".format(self.actual.id, context[0], context[1].id)
 
         if self.diff_type == DiffType.child_removed:
             context = cast(Tuple[str, TriliumNoteShort], self.context)
-            return "[{}] Child linked as '{}' was removed to '{}'.".format(self.actual.id, context[0], context[1].id)
+            return "[{}] Child linked as '{}' was removed to '{}'".format(self.actual.id, context[0], context[1].id)
 
         if self.diff_type == DiffType.child_changed:
             context = cast(Tuple[str, TriliumNoteShort], self.context)
-            return "[{}] Child linked as '{}' was changed to '{}'.".format(self.actual.id, context[0], context[1].id)
+            return "[{}] Child linked as '{}' was changed to '{}'".format(self.actual.id, context[0], context[1].id)
 
         if self.diff_type == DiffType.child_link_changed:
             context = cast(Tuple[str, TriliumNoteShort], self.context)
-            return "[{}] Child '{}'s link was changed to '{}'.".format(self.actual.id, context[1].id, context[0])
+            return "[{}] Child '{}'s link was changed to '{}'".format(self.actual.id, context[1].id, context[0])
 
         assert False, self.diff_type
 
